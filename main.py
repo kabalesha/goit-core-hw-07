@@ -2,6 +2,7 @@ from collections import UserDict
 import re
 from datetime import datetime, timedelta
 
+
 class Field:
     def __init__(self, value):
         self.value = value
@@ -9,8 +10,10 @@ class Field:
     def __str__(self):
         return str(self.value)
 
+
 class Name(Field):
     pass
+
 
 class Phone(Field):
     def __init__(self, value):
@@ -21,6 +24,7 @@ class Phone(Field):
     @staticmethod
     def validate(value):
         return bool(re.match(r'^\d{10}$', value))
+
 
 class Birthday(Field):
     def __init__(self, value):
@@ -35,6 +39,7 @@ class Birthday(Field):
             return True
         except ValueError:
             return False
+
 
 class Record:
     def __init__(self, name):
@@ -76,6 +81,7 @@ class Record:
         birthday = self.get_birthday()
         return f"Contact name: {self.name.value}, phones: {phones}, birthday: {birthday}"
 
+
 class AddressBook(UserDict):
     def add_record(self, record):
         self.data[record.name.value] = record
@@ -96,9 +102,15 @@ class AddressBook(UserDict):
                 birthday_this_year = birthday_date.replace(year=today.year)
                 if birthday_this_year < today:
                     birthday_this_year = birthday_this_year.replace(year=today.year + 1)
+
                 if 0 <= (birthday_this_year - today).days <= 7:
-                    upcoming_birthdays.append({"name": record.name.value, "birthday": record.birthday.value})
+                    if birthday_this_year.weekday() in [5, 6]:  # Якщо вихідний (сб, нд)
+                        birthday_this_year += timedelta(
+                            days=(7 - birthday_this_year.weekday()))  # Переносимо на понеділок
+                    upcoming_birthdays.append(
+                        {"name": record.name.value, "congrats_date": birthday_this_year.strftime("%d.%m.%Y")})
         return upcoming_birthdays
+
 
 def input_error(func):
     def wrapper(*args, **kwargs):
@@ -106,7 +118,9 @@ def input_error(func):
             return func(*args, **kwargs)
         except (ValueError, IndexError, KeyError) as e:
             return f"Error: {str(e)}"
+
     return wrapper
+
 
 @input_error
 def add_contact(args, book):
@@ -118,6 +132,26 @@ def add_contact(args, book):
     record.add_phone(phone)
     return "Contact added."
 
+
+@input_error
+def change_contact(args, book):
+    name, old_phone, new_phone = args
+    record = book.find(name)
+    if record is None:
+        return "Contact not found."
+    record.edit_phone(old_phone, new_phone)
+    return "Phone number updated."
+
+
+@input_error
+def show_phone(args, book):
+    name = args[0]
+    record = book.find(name)
+    if record is None:
+        return "Contact not found."
+    return f"{name}: {', '.join(p.value for p in record.phones)}"
+
+
 @input_error
 def add_birthday(args, book):
     name, birthday = args
@@ -127,6 +161,7 @@ def add_birthday(args, book):
     record.add_birthday(birthday)
     return "Birthday added."
 
+
 @input_error
 def show_birthday(args, book):
     name = args[0]
@@ -135,10 +170,12 @@ def show_birthday(args, book):
         return "Contact not found."
     return f"{name}'s birthday is {record.get_birthday()}"
 
+
 @input_error
 def birthdays(args, book):
     upcoming = book.get_upcoming_birthdays()
     return upcoming if upcoming else "No upcoming birthdays."
+
 
 def main():
     book = AddressBook()
@@ -151,14 +188,24 @@ def main():
             break
         elif command == "add":
             print(add_contact(args, book))
+        elif command == "change":
+            print(change_contact(args, book))
+        elif command == "phone":
+            print(show_phone(args, book))
+        elif command == "all":
+            for record in book.data.values():
+                print(record)
         elif command == "add-birthday":
             print(add_birthday(args, book))
         elif command == "show-birthday":
             print(show_birthday(args, book))
         elif command == "birthdays":
             print(birthdays(args, book))
+        elif command == "hello":
+            print("Hello! How can I assist you?")
         else:
             print("Invalid command.")
+
 
 if __name__ == "__main__":
     main()
